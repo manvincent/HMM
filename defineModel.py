@@ -36,13 +36,15 @@ class ModelType(object):
         self.smBeta_bounds = (1, 20)
         self.mu_0_bounds = (np.min(payOut), 0) # parameter of p(out | state = incorrect)
         self.mu_1_bounds = (0, np.max(payOut)) # parameter of p(out | state = correct)
-        self.sigma_bounds = (0.1, 3)
+        self.sigma_bounds = (0, 10)
 
         # Define prior distributions hyperparameters
-        self.delta_a = self.delta_b = 1.2 # Beta distr. prior over delta
-        self.smBeta_shape = 4.83 # Gamma distr. prior over smBeta
-        self.smBeta_scale = 0.73
+        self.delta_a = self.delta_b = 2 # Beta distr. prior over delta
+        self.smBeta_shape = 10 # Gamma distr. prior over smBeta
+        self.smBeta_loc = 3
+        self.smBeta_scale = 1
         self.sigma_shape = 2
+        self.sigma_loc = 0
         self.sigma_scale = 1
         return
 
@@ -68,8 +70,8 @@ class ModelType(object):
 
         # Distributions
         delta_genDistr = beta(self.delta_a, self.delta_b)
-        smBeta_genDistr = gamma(self.smBeta_shape, self.smBeta_scale)
-        sigma_genDistr = invgamma(self.sigma_shape, self.sigma_scale)
+        smBeta_genDistr = gamma(self.smBeta_shape, self.smBeta_loc, self.smBeta_scale)
+        sigma_genDistr = invgamma(self.sigma_shape, self.sigma_loc, self.sigma_scale)
 
         # CDF at boundaries
         delta_cdf = delta_genDistr.cdf(self.delta_bounds)
@@ -108,10 +110,10 @@ class ModelType(object):
         delta_logpdf = lambda x: np.sum(np.log(beta.pdf(x, self.delta_a, self.delta_b)))
         delta_logpdf.__name__ = "A_logpdf"
         # Prior distribution of softmax beta
-        smBeta_logpdf = lambda x: np.sum(np.log(gamma.pdf(x, self.smBeta_shape, loc=0, scale=self.smBeta_scale)))
+        smBeta_logpdf = lambda x: np.sum(np.log(gamma.pdf(x, self.smBeta_shape, self.smBeta_loc, scale=self.smBeta_scale)))
         smBeta_logpdf.__name__ = "smB_logpdf"
         # Prior distribution for gaussian sigma
-        sigma_logpdf = lambda x: np.sum(np.log(invgamma.pdf(x, self.sigma_shape, loc=0, scale=self.sigma_scale)))
+        sigma_logpdf = lambda x: np.sum(np.log(invgamma.pdf(x, self.sigma_shape, self.sigma_loc, scale=self.sigma_scale)))
         sigma_logpdf.__name__ = "sigma_logpdf"
         return dict(delta_prior = delta_logpdf,
                     smBeta_prior = smBeta_logpdf,

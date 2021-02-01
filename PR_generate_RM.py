@@ -22,16 +22,16 @@ from utilities import *
 def runGenerate():
     numMaxDays = 6
     sessPerDays = 5
-    for numSessions in np.arange(1,numMaxDays+1) * sessPerDays: 
+    for numSessions in np.arange(1,numMaxDays+1) * sessPerDays:
         print(f'Simulation with {numSessions} sessions')
         genData(numSessions)
-        
+
 ### Generate script
 def initGenerate(numSessions):
     ###### Global task properties ######
     # Defining directories #
     homeDir = '/home/vman/Dropbox/PostDoctoral/gitRepos/HMM'
-    if not os.path.exists(homeDir): 
+    if not os.path.exists(homeDir):
         os.mkdir(homeDir)
     outDir = f'{homeDir}/Generate/Sessions_{numSessions}'
     if not os.path.exists(outDir):
@@ -40,33 +40,33 @@ def initGenerate(numSessions):
     outMag = np.array([0.25, 0.50, 0.75])
     payOut = np.array([outMag, -1*outMag])
     initMod = ModelType(payOut, emission_type='gaussian')
-    # Initialize the dictionary 
+    # Initialize the dictionary
     initDict = dict2class(dict(outDir = outDir))
     return(initDict,initMod)
 
 def genData(numSessions):
     # Number of different parameter values
-    numParamEst = 10
+    numParamEst = 20
     # Intialize structures and set up directories
     [initDict,initMod] = initGenerate(numSessions)
     # Number of simulations
-    numIter = 1000
+    numIter = 100
     # Set up range of model parameter values
     modelStruct = dict()
     # Generative parameters ()
     genVal  = initMod.genPriors(numParamEst)
     param_names = list(genVal.keys())
-    
+
     sub_params = np.empty((numIter, initMod.numParams), dtype=float)
-    for subID in np.arange(numIter): 
+    for subID in np.arange(numIter):
         sub_params[subID,:] = [np.random.choice(list(genVal.values())[i]) for i in np.arange(initMod.numParams)]
-        
+
     for subID in np.arange(numIter):
         # Specify model parameter for the current sim
-        genParams = {} 
+        genParams = {}
         for param_idx in np.arange(initMod.numParams):
             genParams.update({param_names[param_idx]: sub_params[subID,param_idx]})
-            
+
         # Set up the task parameters
         initDict = initTask(subID+1, initDict, numSessions)
 
@@ -76,22 +76,22 @@ def genData(numSessions):
             sessionInfo = initDict.sessionInfo[sI]
             # Initialize the reverseStatus to False (need participant to get 4 continuous correct)
             reverseStatus = False
-            # Initialize posterior probabilities 
-            posterior = initDict.sessionInfo[sI].posterior_correct[0] = float(1) / initMod.numStates            
-            # Initialize first random action 
-            respIdx = initDict.sessionInfo[sI].sessionResponses[0] = np.random.choice([0,1])                            
+            # Initialize posterior probabilities
+            posterior = initDict.sessionInfo[sI].posterior_correct[0] = float(1) / initMod.numStates
+            # Initialize first random action
+            respIdx = initDict.sessionInfo[sI].sessionResponses[0] = np.random.choice([0,1])
             # Iterate over trials
             for tI in np.arange(1, initDict.trialsPerSess):
                 # Initialize trials
-                initTrial(tI, initDict, sessionInfo)               
+                initTrial(tI, initDict, sessionInfo)
                 # Make response given posterior on last trial
-                respIdx, _ = initMod.actor(posterior, genParams['smBeta'], respIdx)                                
+                respIdx, _ = initMod.actor(posterior, genParams['smBeta'], respIdx)
                 initDict.sessionInfo[sI].sessionResponses[tI] = respIdx
                 # Create tuple of actions (t-1, t)
                 actions = np.array([initDict.sessionInfo[sI].sessionResponses[tI-1],
                                     respIdx])
-                # Compute outcome 
-                reward = computeOutcome(tI, initDict, sessionInfo, respIdx) 
+                # Compute outcome
+                reward = computeOutcome(tI, initDict, sessionInfo, respIdx)
                 # Update posterior belief that selected action is correct
                 if (~np.isnan(reward)):
                     posterior = initMod.belief_propogation(posterior,
@@ -101,11 +101,11 @@ def genData(numSessions):
                                                            genParams['sigma'],
                                                            reward,
                                                            actions)
-                    
-                initDict.sessionInfo[sI].posterior_correct[tI] = posterior                
-                # Compute reversal 
+
+                initDict.sessionInfo[sI].posterior_correct[tI] = posterior
+                # Compute reversal
                 reverseStatus = computeReversal(tI, initDict, sessionInfo, reverseStatus)
-                
+
         # Store simulations
         modelStruct = dict2class(dict(genParams = genParams))
         # Convert data
@@ -129,21 +129,21 @@ def stimParam(initDict):
                 isSelected=isSelected,
                 isWin=isWin,
                 outMag=outMag)
-            
+
 def initTask(subID, initDict, numSessions):
     # Specify task parameters
     pWinHigh = 0.65
     pWinLow = 0.35
     pReversal = 0.25
-    outMag = np.array([0.25, 0.50, 0.75])    
+    outMag = np.array([0.25, 0.50, 0.75])
     # Set up the session-wise design
     trialsPerSess = 60
-    # Flatten as dict2class    
+    # Flatten as dict2class
     initDict.__dict__.update({
             'pWinHigh': pWinHigh,
             'pWinLow': pWinLow,
             'outMag': outMag,
-            'pReversal': pReversal, 
+            'pReversal': pReversal,
             'subID':subID,
             'numSessions':numSessions,
             'trialsPerSess':trialsPerSess})
@@ -161,16 +161,16 @@ def initTask(subID, initDict, numSessions):
         reverseTrial = np.zeros(initDict.trialsPerSess,dtype=bool)
         # Create vector of reversal status after reversals possible
         reverseVec = np.zeros(int(np.floor(1/pReversal)), dtype=bool)
-        reverseVec[0] = True        
+        reverseVec[0] = True
         # Initialize timing containers
-        sessionResponses = np.empty(initDict.trialsPerSess)        
+        sessionResponses = np.empty(initDict.trialsPerSess)
         # Initialize stim attribute containers
         stimAttrib = dict2class(stimParam(initDict))
         # Initialize payout container
         payOut = np.zeros(initDict.trialsPerSess,dtype=float)
         # Initialize the posterior probability (that selected choice is correct)
         posterior_correct = np.empty(initDict.trialsPerSess,dtype=float)
-        
+
         # Flatten into class object
         sessionInfo[sI] = dict2class(dict(stim1_high=stim1_high,
                                        highChosen=highChosen,
@@ -198,7 +198,7 @@ def computeOutcome(tI, initDict, sessionInfo, respIdx):
      elif (respIdx == 1):
          sessionInfo.selectedStim[tI] = 2
          pWin = sessionInfo.stimAttrib.pWin[respIdx,tI]
-         isWin = np.random.binomial(1,pWin,1).astype(bool)[0]          
+         isWin = np.random.binomial(1,pWin,1).astype(bool)[0]
      # Record stim attributes
      sessionInfo.stimAttrib.isSelected[respIdx, tI] = 1
      sessionInfo.stimAttrib.isWin[respIdx, tI] = isWin
@@ -253,13 +253,12 @@ def computeReversal(tI, initDict, sessionInfo, reverseStatus):
                 sessionInfo.reverseTrial[tI] = True
                 # Reset the reverseStatus
                 reverseStatus = False
-        else: 
+        else:
             sessionInfo.reverseTrial[tI] = False
-            
+
     return reverseStatus
 
 
-# Execute    
+# Execute
 if __name__ == "__main__":
     runGenerate()
-        
