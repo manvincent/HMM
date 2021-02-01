@@ -32,7 +32,7 @@ class ModelType(object):
         self.emission_type = emission_type
         # Define parameter lower and upper bounds
         self.numStates = 2
-        self.delta_bounds = (0.01,0.99)
+        self.delta_bounds = (0.1,0.9)
         self.smBeta_bounds = (1, 20)
         self.mu_0_bounds = (np.min(payOut), 0) # parameter of p(out | state = incorrect)
         self.mu_1_bounds = (0, np.max(payOut)) # parameter of p(out | state = correct)
