@@ -36,7 +36,7 @@ class ModelType(object):
         self.smBeta_bounds = (1, 20)
         self.mu_0_bounds = (np.min(payOut), 0) # parameter of p(out | state = incorrect)
         self.mu_1_bounds = (0, np.max(payOut)) # parameter of p(out | state = correct)
-        self.sigma_bounds = (0, 10)
+        self.sigma_bounds = (0.1, 3)
 
         # Define prior distributions hyperparameters
         self.delta_a = self.delta_b = 2 # Beta distr. prior over delta
@@ -173,7 +173,7 @@ class ModelType(object):
             # Gaussian Emission probabilities
             B_incorrect = 1/(sigma * np.sqrt(2*np.pi)) * np.exp(-1/2 * ((obs - mu_0)/sigma)**2)
             B_correct = 1/(sigma * np.sqrt(2*np.pi)) * np.exp(-1/2 * ((obs - mu_1)/sigma)**2)
-            posterior = prior * B_correct / (B_correct * prior + B_incorrect * (1-prior))        
+            posterior = prior * B_correct / (B_correct * prior + B_incorrect * (1-prior))
         return posterior
 
     def actor(self, posterior, smBeta, prev_action):
