@@ -41,8 +41,8 @@ class ModelType(object):
         # Define prior distributions hyperparameters
         self.delta_a = self.delta_b = 2 # Beta distr. prior over delta
         self.smBeta_shape = 10 # Gamma distr. prior over smBeta
-        self.smBeta_loc = 3
-        self.smBeta_scale = 1
+        self.smBeta_loc = 0
+        self.smBeta_scale = 1.2
         self.sigma_shape = 2
         self.sigma_loc = 0
         self.sigma_scale = 1
@@ -110,10 +110,10 @@ class ModelType(object):
         delta_logpdf = lambda x: np.sum(np.log(beta.pdf(x, self.delta_a, self.delta_b)))
         delta_logpdf.__name__ = "A_logpdf"
         # Prior distribution of softmax beta
-        smBeta_logpdf = lambda x: np.sum(np.log(gamma.pdf(x, self.smBeta_shape, self.smBeta_loc, scale=self.smBeta_scale)))
+        smBeta_logpdf = lambda x: np.sum(np.log(gamma.pdf(x, self.smBeta_shape, self.smBeta_loc, self.smBeta_scale)))
         smBeta_logpdf.__name__ = "smB_logpdf"
         # Prior distribution for gaussian sigma
-        sigma_logpdf = lambda x: np.sum(np.log(invgamma.pdf(x, self.sigma_shape, self.sigma_loc, scale=self.sigma_scale)))
+        sigma_logpdf = lambda x: np.sum(np.log(invgamma.pdf(x, self.sigma_shape, self.sigma_loc, self.sigma_scale)))
         sigma_logpdf.__name__ = "sigma_logpdf"
         return dict(delta_prior = delta_logpdf,
                     smBeta_prior = smBeta_logpdf,
