@@ -19,30 +19,34 @@ np.seterr(over='warn')
 np.set_printoptions(threshold=sys.maxsize)
 import pickle
 import os
-os.chdir('/home/vman/Dropbox/PostDoctoral/gitRepos/HMM')
+os.chdir('/state/partition1/home/vman/hyp_strat/discrete_condaction_HMM')
+# os.chdir('/home/vman/Dropbox/PostDoctoral/Projects/rew_mod/analysis/modelling/HMM/discrete_condaction_HMM')
+
 from optimizer import *
 from utilities import *
 
 ### Recovery script
 
 def runRecover():
-    numMaxDays = 6
+    numMaxDays = 1
     sessPerDays = 5
     fitModel(numMaxDays, sessPerDays)
 
 
 def initRecover(numSessions):
-    modelName = 'action_HMM'
-    homeDir = '/home/vman/Dropbox/PostDoctoral/gitRepos/HMM'
-    datDir =  f'{homeDir}/Generate/Sessions_{numSessions}'
-    outDir = f'{homeDir}/Recover'
+    modelName = 'cond_action'
+    emission_type = 'discrete'
+    homeDir = '/state/partition1/home/vman/hyp_strat/discrete_condaction_HMM'
+    datDir =  f'{homeDir}/Generate_{modelName}_{emission_type}/Sessions_{numSessions}'
+    outDir = f'{homeDir}/Recover_{modelName}_{emission_type}'
     if not os.path.exists(outDir):
         os.makedirs(outDir)
     # Initialize the Model class
     initDict = dict2class(dict(modelName = modelName,
-                           homeDir = homeDir,
-                           datDir = datDir,
-                           outDir = outDir))
+                               emission_type = emission_type,
+                               homeDir = homeDir,
+                               datDir = datDir,
+                               outDir = outDir))
     return(initDict)
 
 
@@ -71,12 +75,11 @@ def fitModel(numMaxDays, sessPerDays):
             taskData = unpackTask(genTask)
             numTrials = len(taskData.highChosen)
             # Print current fit details
-            print(f'Iteration No: {iterID}')
+            print(f'Iteration No: {iterID+1} out of {numIter}')
             # Initialize the optimizer
             initOptimizer = Optimizer()
-            payOut = np.array([genTask.outMag, -1*genTask.outMag])
             # Run the optimizer
-            parallelResults = initOptimizer.getFit(taskData, numTrials, payOut, emission_type = 'gaussian')
+            parallelResults = initOptimizer.getFit(taskData, numTrials, initDict.emission_type)
             # Store estimates from this seed iteration
             fitParams = np.array([parallelResults[s]['x'] for s in np.arange(len(parallelResults))])
             fitNLL = np.array([parallelResults[s]['fun'] for s in np.arange(len(parallelResults))])
@@ -94,20 +97,20 @@ def fitModel(numMaxDays, sessPerDays):
                                         'recov_mu_0':recovParams.mu_0,
                                         'gen_mu_1':genParams['mu_1'],
                                         'recov_mu_1':recovParams.mu_1,
-                                        'gen_sigma':genParams['sigma'],
-                                        'recov_sigma':recovParams.sigma},
+                                        'gen_alpha':genParams['alpha'],
+                                        'recov_alpha':recovParams.alpha},
                                        ignore_index=True)
 
         # Save the gen/recov parameters for this 'experiment'
         sampleDF.to_csv(f'{initDict.outDir}/sessions_{numSessions}_paramRecov.csv',index=False)
 
-        # Compute the correlations between the generated and recovered parameters         
+        # Compute the correlations between the generated and recovered parameters
         recovCorrDF = recovCorrDF.append({'sample_n': numTrials,
                                           'delta': np.corrcoef(sampleDF.gen_delta, sampleDF.recov_delta)[1,0],
                                           'smBeta': np.corrcoef(sampleDF.gen_smBeta, sampleDF.recov_smBeta)[1,0],
                                           'mu_0': np.corrcoef(sampleDF.gen_mu_0, sampleDF.recov_mu_0)[1,0],
                                           'mu_1': np.corrcoef(sampleDF.gen_mu_1, sampleDF.recov_mu_1)[1,0],
-                                          'sigma': np.corrcoef(sampleDF.gen_sigma, sampleDF.recov_sigma)[1,0]},
+                                          'alpha': np.corrcoef(sampleDF.gen_alpha, sampleDF.recov_alpha)[1,0]},
                                          ignore_index=True)
     # Save parameter recover results
     recovCorrDF.to_csv(f'{initDict.homeDir}/paramRecov_results.csv', index=False)

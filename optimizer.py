@@ -49,13 +49,13 @@ class Optimizer(object):
         seeds[4,:] = np.random.permutation(np.linspace(self.initMod.sigma_bounds[0], self.initMod.sigma_bounds[1], numSeeds))
         # Parallelize across seed iterations
         num_cores = multiprocessing.cpu_count()
-        parallelResults = Parallel(n_jobs=num_cores)(delayed(unwrap_self)(self, seedIter, seeds, taskData, numTrials, priors)
-                        for seedIter in np.arange(numSeeds))
+        # parallelResults = Parallel(n_jobs=num_cores)(delayed(unwrap_self)(self, seedIter, seeds, taskData, numTrials, priors)
+        #                 for seedIter in np.arange(numSeeds))
         # Non-parallel version for debugging
-        # a = [] 
-        # for seedIter in np.arange(numSeeds): 
-        #     print(f'Fitting seed {seedIter}')
-        #     a.append(self.minimizer(seedIter, seeds, taskData, numTrials, priors))
+        a = [] 
+        for seedIter in np.arange(numSeeds): 
+            print(f'Fitting seed {seedIter}')
+            a.append(self.minimizer(seedIter, seeds, taskData, numTrials, priors))
         return parallelResults
 
     def minimizer(self, seedIter, seeds, taskData, numTrials, priors):

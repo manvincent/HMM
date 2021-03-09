@@ -12,7 +12,7 @@ Created on Mon Jan 25 22:57:33 2021
 
 import numpy as np
 import os
-os.chdir('/home/vman/Dropbox/PostDoctoral/gitRepos/HMM')
+os.chdir('/home/vman/Dropbox/PostDoctoral/Projects/rew_mod/analysis/modelling/HMM/discrete_condaction_HMM')
 import itertools
 from defineModel import *
 from utilities import *
@@ -20,7 +20,7 @@ from utilities import *
 
 # Generate data, loop across numSession lengths:
 def runGenerate():
-    numMaxDays = 6
+    numMaxDays = 1
     sessPerDays = 5
     for numSessions in np.arange(1,numMaxDays+1) * sessPerDays:
         print(f'Simulation with {numSessions} sessions')
@@ -29,17 +29,17 @@ def runGenerate():
 ### Generate script
 def initGenerate(numSessions):
     ###### Global task properties ######
+    modelName = 'cond_action'    
+    emission_type = 'discrete'
     # Defining directories #
-    homeDir = '/home/vman/Dropbox/PostDoctoral/gitRepos/HMM'
+    homeDir = '/home/vman/Dropbox/PostDoctoral/Projects/rew_mod/analysis/modelling/HMM/discrete_condaction_HMM'
     if not os.path.exists(homeDir):
         os.mkdir(homeDir)
-    outDir = f'{homeDir}/Generate/Sessions_{numSessions}'
+    outDir = f'{homeDir}/Generate_{modelName}_{emission_type}/Sessions_{numSessions}'
     if not os.path.exists(outDir):
         os.makedirs(outDir)
     # Initialize the Model class
-    outMag = np.array([0.25, 0.50, 0.75])
-    payOut = np.array([outMag, -1*outMag])
-    initMod = ModelType(payOut, emission_type='gaussian')
+    initMod = ModelType(emission_type)
     # Initialize the dictionary
     initDict = dict2class(dict(outDir = outDir))
     return(initDict,initMod)
@@ -70,6 +70,7 @@ def genData(numSessions):
         # Set up the task parameters
         initDict = initTask(subID+1, initDict, numSessions)
 
+
         # Loop through sessions and t rials
         for sI in np.arange(initDict.numSessions):
             # Initialize session information
@@ -85,7 +86,7 @@ def genData(numSessions):
                 # Initialize trials
                 initTrial(tI, initDict, sessionInfo)
                 # Make response given posterior on last trial
-                respIdx, _ = initMod.actor(posterior, genParams['smBeta'], respIdx)
+                respIdx, _ = initMod.actor(posterior, genParams['smBeta'], genParams['alpha'], respIdx)
                 initDict.sessionInfo[sI].sessionResponses[tI] = respIdx
                 # Create tuple of actions (t-1, t)
                 actions = np.array([initDict.sessionInfo[sI].sessionResponses[tI-1],
@@ -98,7 +99,6 @@ def genData(numSessions):
                                                            genParams['delta'],
                                                            genParams['mu_0'],
                                                            genParams['mu_1'],
-                                                           genParams['sigma'],
                                                            reward,
                                                            actions)
 
@@ -112,6 +112,8 @@ def genData(numSessions):
         outPack = convertSave(initDict, modelStruct)
         # Save data (for current session)
         save_obj(outPack, initDict.outDir + os.sep + 'sim_' + str(initDict.subID))
+        # save_obj(outPack, f'{initDict.outDir}/true_sim')
+
         # Save as .mat files (for current session)
     return
 
@@ -184,7 +186,6 @@ def initTask(subID, initDict, numSessions):
                                        posterior_correct=posterior_correct))
     initDict.__dict__.update({'sessionInfo':sessionInfo})
     return(initDict)
-
 
 
 def computeOutcome(tI, initDict, sessionInfo, respIdx):
