@@ -16,9 +16,6 @@ class ModelType(object):
         Parameters
         ----------
         emission_type : string, optional
-            Options: 'discrete' or 'gaussian'
-            Toggles between discrete emission probabilities vs. Gaussian
-            emissions.
             The default is = 'discrete'.
 
         Returns
@@ -65,11 +62,11 @@ class ModelType(object):
         # Distributions
         delta_genDistr = beta(self.delta_a, self.delta_b)
         smBeta_genDistr = gamma(self.smBeta_shape, self.smBeta_loc, self.smBeta_scale)
-        
+
         # CDF at boundaries
         delta_cdf = delta_genDistr.cdf(self.delta_bounds)
         smBeta_cdf = smBeta_genDistr.cdf(self.smBeta_bounds)
-        
+
         # Generative (ground truth) parameter values using ppf
         delta_genVal = delta_genDistr.ppf(np.linspace(*delta_cdf, num=arr))
         smBeta_genVal = smBeta_genDistr.ppf(np.linspace(*smBeta_cdf, num=arr))
@@ -158,7 +155,7 @@ class ModelType(object):
             B_incorrect = np.array([mu_0, 1-mu_0])
             obs_idx = int(obs > 0) # Recode win/loss as 1/0 int for indexing
             posterior = prior * B_correct[obs_idx] / (B_correct[obs_idx] * prior + B_incorrect[obs_idx] * (1-prior))
-        else: 
+        else:
             raise Exception('Emission type incorrectly specified!')
         return posterior
 
