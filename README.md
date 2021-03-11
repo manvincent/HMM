@@ -5,7 +5,7 @@ Similar to that implemented in Hampton et al. (2006) J Neurosci
 
 Discrete emission probabilities for binary outcomes
 
-Currently fits MLE (uniform prior) which as better identifiability than mis-specified priors
+Currently fits MLE (uniform prior) which has better identifiability than mis-specified priors
 
 # Upcoming (message me if interested)
 Modified to allow for a continuous Gaussian emission distribution  
