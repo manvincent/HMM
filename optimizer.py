@@ -52,8 +52,8 @@ class Optimizer(object):
         # parallelResults = Parallel(n_jobs=num_cores)(delayed(unwrap_self)(self, seedIter, seeds, taskData, numTrials, priors)
         #                 for seedIter in np.arange(numSeeds))
         # Non-parallel version for debugging
-        a = [] 
-        for seedIter in np.arange(numSeeds): 
+        a = []
+        for seedIter in np.arange(numSeeds):
             print(f'Fitting seed {seedIter}')
             a.append(self.minimizer(seedIter, seeds, taskData, numTrials, priors))
         return parallelResults
@@ -90,7 +90,7 @@ class Optimizer(object):
 
             # Get observed response
             respIdx = taskData.respIdx[tI].astype(int)
-            
+
             if ~np.isnan(taskData.respIdx[tI]):
                 # Get likelihood of data | model
                 pChoice += np.log(pOptions[respIdx])
@@ -110,16 +110,16 @@ class Optimizer(object):
                                                                 reward, actions)
             else:
                 pChoice += 1e-10
-                
+
         return pChoice
 
     def posterior(self, param, taskData, numTrials, priors):
         # Define likelihood function
         logLike = self.likelihood(param, taskData, numTrials)
         # Add log likelihood and log priors across parameters
-        logLike += priors['delta_prior'](param[0])
-        logLike += priors['smBeta_prior'](param[1])
-        logLike += priors['sigma_prior'](param[4])
+        # logLike += priors['delta_prior'](param[0])
+        # logLike += priors['smBeta_prior'](param[1])
+        # logLike += priors['sigma_prior'](param[4])
         # Compute posterior (neg log) likelihood
         NLL = -1 * logLike
         return NLL

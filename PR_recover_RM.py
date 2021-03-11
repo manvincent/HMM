@@ -19,7 +19,7 @@ np.seterr(over='warn')
 np.set_printoptions(threshold=sys.maxsize)
 import pickle
 import os
-os.chdir('/state/partition1/home/vman/hyp_strat/discrete_condaction_HMM')
+os.chdir('/path/to/project')
 # os.chdir('/home/vman/Dropbox/PostDoctoral/Projects/rew_mod/analysis/modelling/HMM/discrete_condaction_HMM')
 
 from optimizer import *
@@ -36,7 +36,7 @@ def runRecover():
 def initRecover(numSessions):
     modelName = 'cond_action'
     emission_type = 'discrete'
-    homeDir = '/state/partition1/home/vman/hyp_strat/discrete_condaction_HMM'
+    homeDir = '/path/to/project'
     datDir =  f'{homeDir}/Generate_{modelName}_{emission_type}/Sessions_{numSessions}'
     outDir = f'{homeDir}/Recover_{modelName}_{emission_type}'
     if not os.path.exists(outDir):

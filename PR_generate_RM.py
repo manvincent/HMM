@@ -12,7 +12,7 @@ Created on Mon Jan 25 22:57:33 2021
 
 import numpy as np
 import os
-os.chdir('/home/vman/Dropbox/PostDoctoral/Projects/rew_mod/analysis/modelling/HMM/discrete_condaction_HMM')
+os.chdir('/path/to/project')
 import itertools
 from defineModel import *
 from utilities import *
@@ -29,10 +29,10 @@ def runGenerate():
 ### Generate script
 def initGenerate(numSessions):
     ###### Global task properties ######
-    modelName = 'cond_action'    
+    modelName = 'cond_action'
     emission_type = 'discrete'
     # Defining directories #
-    homeDir = '/home/vman/Dropbox/PostDoctoral/Projects/rew_mod/analysis/modelling/HMM/discrete_condaction_HMM'
+    homeDir = '/path/to/project'
     if not os.path.exists(homeDir):
         os.mkdir(homeDir)
     outDir = f'{homeDir}/Generate_{modelName}_{emission_type}/Sessions_{numSessions}'
