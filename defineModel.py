@@ -7,7 +7,7 @@ from scipy.stats import gamma, beta, invgamma
 # Define model types
 class ModelType(object):
 
-    def __init__(self, emission_type = 'gaussian'):
+    def __init__(self, emission_type = 'discrete'):
         '''
         Baseline HMM conditioned on state and behaviour (stay/switch)
         Implementation of HMM described in Hampton et al (2006) J Neurosci
