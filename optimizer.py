@@ -7,119 +7,107 @@ Created on Tue Mar 12 13:38:45 2019
 """
 import numpy as np
 from scipy.optimize import minimize
+from scipy.stats import norm
 from joblib import Parallel, delayed
 import multiprocessing
-num_cores = multiprocessing.cpu_count()-1
 import time
-from defineModel import *
 from utilities import *
+from Models.Model_params import fitParamContain
 
-def unwrap_self(modFit, seedIter, seeds, taskData, numTrials, priors):
-    return modFit.minimizer(seedIter, seeds, taskData, numTrials, priors)
-
+def unwrap_self(modFit, sIdx, seeds):
+    return modFit.minimizer(sIdx, seeds)
 
 class Optimizer(object):
     def __init__(self):
-        self.xtol = 0.001
-        self.ftol = 0.01
+        self.tol = 1e-3
         self.maxiter = 1000
         self.disp = False
         return
+    
+    
+    def minimizer(self, sIdx, seeds):
+        optimResults = minimize(self.loss_fn,
+                                seeds[:,sIdx],
+                                method = 'BFGS',
+                                tol = self.tol,
+                                options = dict(disp = self.disp,
+                                             maxiter = self.maxiter))
+        return(optimResults)
+    
+    def computeBIC(self, NLL): 
+        likelihood = np.exp(-1 * NLL)
+        return self.mod.numParams * np.log(self.mod.numLLTrials) - 2 * np.log(likelihood)
+        
+    def computeAIC(self, NLL): 
+        likelihood = np.exp(-1 * NLL)        
+        return 2 * self.mod.numParams - 2 * np.log(likelihood)
+    
+    def runSerialOptimizer(self, seeds): 
+        # Iterative across seed iterations
+        serialResults = [] 
+        for sIdx in np.arange(self.mod.numSeeds):
+            print(f'Iteration: {sIdx} / {self.mod.numSeeds}')
+            serialResults.append(self.minimizer(sIdx, seeds))                        
+        return serialResults
 
-    def getFit(self, taskData, numTrials, payOut, emission_type):
-        # Initialize the model and bounds
-        self.initMod = ModelType(payOut, emission_type)
-        # Define parameter bounds
-        self.boundList = tuple((self.initMod.delta_bounds,
-                                self.initMod.smBeta_bounds,
-                                self.initMod.mu_0_bounds,
-                                self.initMod.mu_1_bounds,
-                                self.initMod.sigma_bounds))
-
-        # Define prior distribution
-        priors = self.initMod.paramPriors()
-        ### Optimization
-        # Set up seed searching
-        numSeeds = 500
-        seeds = np.zeros([self.initMod.numParams,numSeeds], dtype=float)
-        seeds[0,:] = np.random.permutation(np.linspace(self.initMod.delta_bounds[0], self.initMod.delta_bounds[1], numSeeds))
-        seeds[1,:] = np.random.permutation(np.linspace(self.initMod.smBeta_bounds[0], self.initMod.smBeta_bounds[1], numSeeds))
-        seeds[2,:] = np.random.permutation(np.linspace(self.initMod.mu_0_bounds[0], self.initMod.mu_0_bounds[1], numSeeds))
-        seeds[3,:] = np.random.permutation(np.linspace(self.initMod.mu_1_bounds[0], self.initMod.mu_1_bounds[1], numSeeds))
-        seeds[4,:] = np.random.permutation(np.linspace(self.initMod.sigma_bounds[0], self.initMod.sigma_bounds[1], numSeeds))
+    def runParallelOptimizer(self, seeds): 
         # Parallelize across seed iterations
         num_cores = multiprocessing.cpu_count()
-        parallelResults = Parallel(n_jobs=num_cores)(delayed(unwrap_self)(self, seedIter, seeds, taskData, numTrials, priors)
-                        for seedIter in np.arange(numSeeds))
-        # Non-parallel version for debugging
-        # a = []
-        # for seedIter in np.arange(numSeeds):
-        #     print(f'Fitting seed {seedIter}')
-        #     a.append(self.minimizer(seedIter, seeds, taskData, numTrials, priors))
+        parallelResults = Parallel(n_jobs=num_cores)(delayed(unwrap_self)(self, sIdx, seeds)
+                        for sIdx in np.arange(self.mod.numSeeds))
         return parallelResults
-
-    def minimizer(self, seedIter, seeds, taskData, numTrials, priors):
-        optimResults = minimize(self.posterior,
-                                seeds[:,seedIter],
-                                args = (taskData, numTrials, priors),
-                                method = 'TNC',
-                                bounds = self.boundList,
-                                options = dict(disp = self.disp,
-                                             maxiter = self.maxiter,
-                                             xtol = self.xtol,
-                                             ftol = self.ftol))
-        return(optimResults)
-
-    def likelihood(self, param, taskData, numTrials):
-        # Unpack parameter values
-        delta, smBeta, mu_0, mu_1, sigma = param
-        # Initialize posterior
-        posterior = float(1) / self.initMod.numStates
-        # Get first (random) observed action
-        respIdx = taskData.respIdx[0]
-        # Initilize trial likelihood
-        pChoice = 0
-        # Iterate over trials
-        for tI in np.arange(1, numTrials):
-            if taskData.runReset[tI] == 1:
-                # Initialize posterior probabilities
-                posterior = float(1) / self.initMod.numStates
-
-            # Run model simulation
-            _, pOptions = self.initMod.actor(posterior, smBeta, respIdx)
-
-            # Get observed response
-            respIdx = taskData.respIdx[tI].astype(int)
-
-            if ~np.isnan(taskData.respIdx[tI]):
-                # Get likelihood of data | model
-                pChoice += np.log(pOptions[respIdx])
-                # Create tuple of observed responses actions (t-1, t)
-                actions = np.array([taskData.respIdx[tI-1],
-                                     respIdx])
-
-                # Observe outcome
-                reward = taskData.payOut[tI]
-                # Update posterior belief that selected action is correct
-                if (~np.isnan(reward)):
-                    posterior = self.initMod.belief_propogation(posterior,
-                                                                delta,
-                                                                mu_0,
-                                                                mu_1,
-                                                                sigma,
-                                                                reward, actions)
-            else:
-                pChoice += 1e-10
-
-        return pChoice
-
-    def posterior(self, param, taskData, numTrials, priors):
+    
+    def unpackOptimizer(self, parallelResults): 
+        # Remove estimates that didn't converge z
+        fitConv = np.array([parallelResults[s]['success'] for s in np.arange(len(parallelResults))])
+        noConv_idx = np.where(fitConv == False)[0]
+        print(f'{len(noConv_idx)} out of {self.mod.numSeeds} did not converge')
+        parallelResults = np.delete(parallelResults, noConv_idx)
+        
+        # Store estimates from this seed iteration        
+        fitParams = np.array([parallelResults[s]['x'] for s in np.arange(len(parallelResults))])
+        fitNLL = np.array([parallelResults[s]['fun'] for s in np.arange(len(parallelResults))])
+        fitInvHess = np.array([parallelResults[s]['hess_inv'] for s in np.arange(len(parallelResults))])            
+        # Retrieve best fit parameters and assoc. NLL and InvHess
+        minIdx = np.argmin(fitNLL)        
+        optimParams = fitParams[minIdx]
+        estimNLL = fitNLL[minIdx]
+        estimAIC = self.computeAIC(estimNLL)
+        estimBIC = self.computeBIC(estimNLL)        
+        estimInvHess = fitInvHess[minIdx]
+        # Transform best fit parameter
+        estimParams = self.mod.transformParams(optimParams)            
+        return fitParamContain(estimNLL, self.mod.numParams, estimAIC, estimBIC, estimInvHess), estimParams
+    
+        
+    def tuneOptim(self, param):
         # Define likelihood function
-        logLike = self.likelihood(param, taskData, numTrials)
+        NLL = self.mod.likelihood(param)
+        # Define tuning function
+        normal_logpdf = lambda x: np.sum(np.log(norm.pdf(x, loc=0, scale=2)))        
         # Add log likelihood and log priors across parameters
-        # logLike += priors['delta_prior'](param[0])
-        # logLike += priors['smBeta_prior'](param[1])
-        # logLike += priors['sigma_prior'](param[4])
-        # Compute posterior (neg log) likelihood
-        NLL = -1 * logLike
+        for p in np.arange(self.mod.numParams):
+            NLL -= normal_logpdf(param[p])            
         return NLL
+        
+    def initSeeds(self):
+        # Set up seed searching
+        seeds = np.zeros((self.mod.numParams, self.mod.numSeeds), dtype='float')
+        for i in np.arange(self.mod.numParams):
+            seeds[i,:] = np.linspace(-5,5, self.mod.numSeeds)            
+        self.loss_fn = self.tuneOptim
+        return seeds
+                 
+    def fitModel(self, model, taskData):        
+        # Initialize the model 
+        self.mod = model()
+        # Specify data for the model
+        self.mod.inputData(taskData)
+        # Initialize seeds    
+        seeds = self.initSeeds()        
+        ### Optimization     
+        searchResults = self.runParallelOptimizer(seeds)        
+        # Store estimates 
+        optimRes, estimParams = self.unpackOptimizer(searchResults)                
+        return optimRes, estimParams
+    
